@@ -4,6 +4,10 @@ import pyrealsense2 as rs
 import numpy as np
 # Import OpenCV for easy image rendering
 import cv2
+# Import Pandas for save data
+import pandas as pd
+# Import Keyboard to detect key press
+import keyboard as kb
 
 # Create a pipeline
 pipeline = rs.pipeline()
@@ -33,6 +37,16 @@ clipping_distance = clipping_distance_in_meters / depth_scale
 align_to = rs.stream.color
 align = rs.align(align_to)
 
+# Both sides
+leftBorder = 120
+rightBorder = 200
+
+# Image size
+imgWidth = 320
+imgHeight = 240
+
+# Image division
+imgDivision = 5
 
 #  Post process frame
 def post_process_depth_frame(depth_frame, decimation_magnitude=1.0, spatial_magnitude=2.0, spatial_smooth_alpha=0.5,
@@ -89,10 +103,6 @@ def post_process_depth_frame(depth_frame, decimation_magnitude=1.0, spatial_magn
     return filtered_frame
 
 
-# Both sides
-leftBorder = 240
-rightBorder = 400
-
 # Streaming loop
 try:
     while True:
@@ -106,7 +116,7 @@ try:
         # Get aligned frames
         aligned_depth_frame = aligned_frames.get_depth_frame()  # aligned_depth_frame is a 640x480 depth image
         color_frame = aligned_frames.get_color_frame()
-        process_frame = post_process_depth_frame(aligned_depth_frame)
+        post_process_depth_frame(aligned_depth_frame)
 
         # Validate that both frames are valid
         if not aligned_depth_frame or not color_frame:
@@ -114,30 +124,45 @@ try:
 
         depth_image = np.asanyarray(aligned_depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
-        process_image = np.asanyarray(process_frame.get_data())
 
-        # depth_image is 480 x 640 image
+        # Resize images
+        resize_depth_image = cv2.resize(depth_image, (imgWidth, imgHeight), fx=0.5, fy=0.5,
+                                        interpolation=cv2.INTER_AREA)
+        resize_color_image = cv2.resize(color_image, (imgWidth, imgHeight), fx=0.5, fy=0.5,
+                                        interpolation=cv2.INTER_AREA)
+
+        # Save csv data
+        if kb.is_pressed('s'):
+            data = pd.DataFrame(resize_depth_image[:, imgHeight / 2 - 20:imgHeight / 2 + 20])
+            data.to_csv("C:\Users\dkdjs\Desktop\Elysium\Data\output.csv", mode='w')
+
+        # depth_image is height x width array
 
         # Save max depth points
-        arr = np.zeros(shape=(96, 2))
-        for i in range(0, 96):
-            arr[i] = [leftBorder + np.argmax(process_image[i * 5][leftBorder:rightBorder]), i * 5]
+        imgUnitHeight = imgHeight / imgDivision
+        arr = np.zeros(shape=(imgUnitHeight, 2))
+        for i in range(0, imgUnitHeight):
+            arr[i] = [leftBorder + np.argmax(resize_depth_image[i * imgDivision][leftBorder:rightBorder]), i *
+                      imgDivision]
 
+        # Convert to numpy arrays
         arr = np.array(arr, np.int32)
         arr = arr.reshape((-1, 1, 2))
 
         # Remove background - Set pixels further than clipping_distance to grey
         grey_color = 153
         depth_image_3d = np.dstack(
-            (depth_image, depth_image, depth_image))  # depth image is 1 channel, color is 3 channels
+            (resize_depth_image, resize_depth_image, resize_depth_image))
+        # depth image is 1 channel, color is 3 channels
 
-        bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color, color_image)
+        bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color,
+                              resize_color_image)
 
         # Draw max depth line
         # cv2.polylines(bg_removed, [arr], False, (180, 0, 0), 2)
 
         # Draw max depth point
-        for i in range(0, 95):
+        for i in range(0, imgUnitHeight):
             if arr[i][0][0] != leftBorder:
                 cv2.circle(bg_removed, (arr[i][0][0], arr[i][0][1]), 3, (180, 0, 0), 1)
 
@@ -146,12 +171,13 @@ try:
         # cv2.line(bg_removed, (360, 0), (360, 479), (0, 0, 180), 3)
 
         # Render images
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(process_image, alpha=0.5), cv2.COLORMAP_JET)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(resize_depth_image, alpha=0.5), cv2.COLORMAP_JET)
 
         # Draw range line
-        cv2.line(depth_colormap, (leftBorder, 0), (leftBorder, 479), (0, 0, 0), 3)
-        cv2.line(depth_colormap, (rightBorder, 0), (rightBorder, 479), (0, 0, 0), 3)
+        cv2.line(depth_colormap, (leftBorder, 0), (leftBorder, imgHeight - 1), (0, 0, 0), 3)
+        cv2.line(depth_colormap, (rightBorder, 0), (rightBorder, imgHeight - 1), (0, 0, 0), 3)
 
+        # Show depth and color images
         images = np.hstack((bg_removed, depth_colormap))
         cv2.namedWindow('Align Example', cv2.WINDOW_AUTOSIZE)
         cv2.imshow('Align Example', images)

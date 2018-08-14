@@ -15,7 +15,7 @@ pipeline = rs.pipeline()
 # Create a config and configure the pipeline to stream
 #  different resolutions of color and depth streams
 config = rs.config()
-config.enable_stream(rs.stream.depth, 640, 360, rs.format.z16, 30)
+config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
 # Start streaming
@@ -38,8 +38,15 @@ align_to = rs.stream.color
 align = rs.align(align_to)
 
 # Both sides
-leftBorder = 240
-rightBorder = 400
+leftBorder = 120
+rightBorder = 200
+
+# Image size
+imgWidth = 320
+imgHeight = 240
+
+# Image division
+imgDivision = 5
 
 # Streaming loop
 try:
@@ -62,17 +69,25 @@ try:
         depth_image = np.asanyarray(aligned_depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
+        # Resize images
+        resize_depth_image = cv2.resize(depth_image, (imgWidth, imgHeight), fx=0.5, fy=0.5,
+                                        interpolation=cv2.INTER_AREA)
+        resize_color_image = cv2.resize(color_image, (imgWidth, imgHeight), fx=0.5, fy=0.5,
+                                        interpolation=cv2.INTER_AREA)
+
         # Save csv data
         if kb.is_pressed('s'):
-            data = pd.DataFrame(depth_image[:, 200:280])
+            data = pd.DataFrame(resize_depth_image[:, imgHeight / 2 - 20:imgHeight / 2 + 20])
             data.to_csv("C:\Users\dkdjs\Desktop\Elysium\Data\output.csv", mode='w')
 
-        # depth_image is 480 x 640 image
+        # depth_image is height x width array
 
         # Save max depth points
-        arr = np.zeros(shape=(96, 2))
-        for i in range(0, 96):
-            arr[i] = [leftBorder + np.argmax(depth_image[i * 5][leftBorder:rightBorder]), i * 5]
+        imgUnitHeight = imgHeight / imgDivision
+        arr = np.zeros(shape=(imgUnitHeight, 2))
+        for i in range(0, imgUnitHeight):
+            arr[i] = [leftBorder + np.argmax(resize_depth_image[i * imgDivision][leftBorder:rightBorder]), i *
+                      imgDivision]
 
         # Convert to numpy arrays
         arr = np.array(arr, np.int32)
@@ -81,15 +96,17 @@ try:
         # Remove background - Set pixels further than clipping_distance to grey
         grey_color = 153
         depth_image_3d = np.dstack(
-            (depth_image, depth_image, depth_image))  # depth image is 1 channel, color is 3 channels
+            (resize_depth_image, resize_depth_image, resize_depth_image))
+        # depth image is 1 channel, color is 3 channels
 
-        bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color, color_image)
+        bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color,
+                              resize_color_image)
 
         # Draw max depth line
         # cv2.polylines(bg_removed, [arr], False, (180, 0, 0), 2)
 
         # Draw max depth point
-        for i in range(0, 95):
+        for i in range(0, imgUnitHeight):
             if arr[i][0][0] != leftBorder:
                 cv2.circle(bg_removed, (arr[i][0][0], arr[i][0][1]), 3, (180, 0, 0), 1)
 
@@ -98,11 +115,11 @@ try:
         # cv2.line(bg_removed, (360, 0), (360, 479), (0, 0, 180), 3)
 
         # Render images
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.5), cv2.COLORMAP_JET)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(resize_depth_image, alpha=0.5), cv2.COLORMAP_JET)
 
         # Draw range line
-        cv2.line(depth_colormap, (leftBorder, 0), (leftBorder, 479), (0, 0, 0), 3)
-        cv2.line(depth_colormap, (rightBorder, 0), (rightBorder, 479), (0, 0, 0), 3)
+        cv2.line(depth_colormap, (leftBorder, 0), (leftBorder, imgHeight - 1), (0, 0, 0), 3)
+        cv2.line(depth_colormap, (rightBorder, 0), (rightBorder, imgHeight - 1), (0, 0, 0), 3)
 
         # Show depth and color images
         images = np.hstack((bg_removed, depth_colormap))
