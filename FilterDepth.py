@@ -48,6 +48,7 @@ imgHeight = 240
 # Image division
 imgDivision = 5
 
+
 #  Post process frame
 def post_process_depth_frame(depth_frame, decimation_magnitude=1.0, spatial_magnitude=2.0, spatial_smooth_alpha=0.5,
                              spatial_smooth_delta=20, temporal_smooth_alpha=0.4, temporal_smooth_delta=20):
@@ -134,7 +135,7 @@ try:
         # Save csv data
         if kb.is_pressed('s'):
             data = pd.DataFrame(resize_depth_image[:, imgHeight / 2 - 20:imgHeight / 2 + 20])
-            data.to_csv("C:\Users\dkdjs\Desktop\Elysium\Data\output.csv", mode='w')
+            data.to_csv("C:\Users\dkdjs\Desktop\Elysium\Data\output.csv", header=False, index=False, mode='w')
 
         # depth_image is height x width array
 

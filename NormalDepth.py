@@ -8,6 +8,8 @@ import cv2
 import pandas as pd
 # Import Keyboard to detect key press
 import keyboard as kb
+# Import Image Utils
+import imutils as iu
 
 # Create a pipeline
 pipeline = rs.pipeline()
@@ -121,10 +123,13 @@ try:
         cv2.line(depth_colormap, (leftBorder, 0), (leftBorder, imgHeight - 1), (0, 0, 0), 3)
         cv2.line(depth_colormap, (rightBorder, 0), (rightBorder, imgHeight - 1), (0, 0, 0), 3)
 
+        # Image roation
+        rotated_colormap = iu.rotate(depth_colormap, 5)
+
         # Show depth and color images
         images = np.hstack((bg_removed, depth_colormap))
         cv2.namedWindow('Align Example', cv2.WINDOW_AUTOSIZE)
-        cv2.imshow('Align Example', images)
+        cv2.imshow('Align Example', rotated_colormap)
         cv2.waitKey(1)
 
 finally:
