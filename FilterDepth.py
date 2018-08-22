@@ -163,9 +163,9 @@ try:
         # cv2.polylines(bg_removed, [arr], False, (180, 0, 0), 2)
 
         # Draw max depth point
-        for i in range(0, imgUnitHeight):
-            if arr[i][0][0] != leftBorder:
-                cv2.circle(bg_removed, (arr[i][0][0], arr[i][0][1]), 3, (180, 0, 0), 1)
+        # for i in range(0, imgUnitHeight):
+        #     if arr[i][0][0] != leftBorder:
+        #         cv2.circle(bg_removed, (arr[i][0][0], arr[i][0][1]), 3, (180, 0, 0), 1)
 
         # Draw range line
         # cv2.line(bg_removed, (280, 0), (280, 479), (0, 0, 180), 3)
@@ -175,8 +175,8 @@ try:
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(resize_depth_image, alpha=0.5), cv2.COLORMAP_JET)
 
         # Draw range line
-        cv2.line(depth_colormap, (leftBorder, 0), (leftBorder, imgHeight - 1), (0, 0, 0), 3)
-        cv2.line(depth_colormap, (rightBorder, 0), (rightBorder, imgHeight - 1), (0, 0, 0), 3)
+        # cv2.line(depth_colormap, (leftBorder, 0), (leftBorder, imgHeight - 1), (0, 0, 0), 3)
+        # cv2.line(depth_colormap, (rightBorder, 0), (rightBorder, imgHeight - 1), (0, 0, 0), 3)
 
         # Show depth and color images
         images = np.hstack((bg_removed, depth_colormap))
